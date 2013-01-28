@@ -58,9 +58,12 @@ class Low_search_publisher_ext {
 
     public function low_search_insert_data()
     {
+        // This isn't set yet when indexing via the ajax method, so just force to Open
+        $status = isset($this->EE->publisher_lib->save_status) ? $this->EE->publisher_lib->save_status : PUBLISHER_STATUS_OPEN;
+
         return array(
             'publisher_lang_id' => $this->EE->publisher_lib->lang_id,
-            'publisher_status'  => $this->EE->publisher_lib->save_status
+            'publisher_status'  => $status
         ); 
     }
 
