@@ -24,15 +24,16 @@
  * @link        http://boldminded.com
  */
 
-class Low_search_publisher_ext {
+class Publisher_low_search_ext {
     
     public $settings        = array();
-    public $description     = 'Low Search support for Publisher';
+    public $description     = 'Adds Low Search support to Publisher';
     public $docs_url        = '';
-    public $name            = 'Low Search Publisher Support';
+    public $name            = 'Publisher - Low Search Support';
     public $settings_exist  = 'n';
     public $version         = '1.0';
-    
+
+    private $table          = 'low_search_indexes';
     private $EE;
     
     /**
@@ -43,85 +44,115 @@ class Low_search_publisher_ext {
     public function __construct($settings = '')
     {
         $this->EE =& get_instance();
-        $this->table = 'low_search_indexes';
+
+        // Create cache
+        if (! isset($this->EE->session->cache['publisher_low_search']))
+        {
+            $this->EE->session->cache['publisher_low_search'] = array();
+        }
+        $this->cache =& $this->EE->session->cache['publisher_low_search'];
     }
 
-    // ----------------------------------------------------------------------
-    
-    public function low_search_data_query()
+    public function low_search_update_index($params, $entry = array())
     {
-        return array(
-            'publisher_lang_id' => $this->EE->publisher_lib->lang_id,
-            'publisher_status'  => $this->EE->publisher_lib->status
-        );
-    }
+        // If batch indexing, just take the params from the entry row
+        if (isset($this->cache['batch_indexing'])) 
+        {
+            $params['publisher_lang_id'] = $entry['publisher_lang_id'];
+            $params['publisher_status'] = $entry['publisher_status'];
+        }
+        // Otherise take it from the current data
+        else
+        {
+            // This isn't set yet when indexing via the ajax method, so just force to Open
+            $status = isset($this->EE->publisher_lib->save_status) ? $this->EE->publisher_lib->save_status : PUBLISHER_STATUS_OPEN;
+            
+            $params['publisher_lang_id'] = $this->EE->publisher_lib->lang_id;
+            $params['publisher_status']  = $this->EE->publisher_lib->status;
+        }
 
-    public function low_search_insert_data()
-    {
-        // This isn't set yet when indexing via the ajax method, so just force to Open
-        $status = isset($this->EE->publisher_lib->save_status) ? $this->EE->publisher_lib->save_status : PUBLISHER_STATUS_OPEN;
-
-        return array(
-            'publisher_lang_id' => $this->EE->publisher_lib->lang_id,
-            'publisher_status'  => $status
-        ); 
+        return $params;
     }
 
     public function low_search_pre_search($params)
     {
-        return array_merge($params, array(
+        $params['add_to_query'] = array(
             'publisher_lang_id' => $this->EE->publisher_lib->lang_id,
             'publisher_status'  => $this->EE->publisher_lib->status
-        ));
+        );
+
+        return $params;
     }
 
-    public function low_search_query_result($results, $row, $field_id, $field_value)
+    public function low_search_build_index($select, $collections, $entry_id, $start, $ext)
     {
-        // If we are in production mode, then the translated data is already in the
-        // $results array that Low Search is parsing, so bail.
-        if (PUBLISHER_MODE == 'production')
+        $this->cache['batch_indexing'] = TRUE;
+
+        // --------------------------------------
+        // Build query
+        // --------------------------------------
+        $select[] = 't.publisher_lang_id';
+        $select[] = 't.publisher_status';
+
+        $this->EE->db->select($select)
+                     ->from('publisher_titles t')
+                     ->join('publisher_data d', 't.entry_id = d.entry_id', 'inner')
+                     ->where_in('t.channel_id', low_flatten_results($collections, 'channel_id'));
+
+        // --------------------------------------
+        // Limit to given entries
+        // --------------------------------------
+
+        if ($entry_id)
         {
-            return $field_value;
-        }
-        else
-        {   
-            // Cache the get_all query first, it gets... ALL THE THINGS!
-            if ( ! isset($this->EE->session->cache['low_search_publisher_results']))
-            {
-                $entry_ids = array();
-
-                foreach ($results as $entry)
-                {
-                    $entry_ids[] = $entry['entry_id'];
-                }
-
-                $this->EE->session->cache['low_search_publisher_results'] = $this->EE->publisher_entry->get_all($entry_ids, $results);
-            }
-
-            $cache = $this->EE->session->cache['low_search_publisher_results'];
-
-            $entry_id = $row['entry_id'];
-
-            // Loop through our cached/translated data and grab the translated version of the field instead
-            foreach ($cache as $cache_row)
-            {
-                if ($cache_row['entry_id'] == $entry_id AND isset($cache_row['field_id_'.$field_id]))
-                {
-                    return $cache_row['field_id_'.$field_id];
-                } 
-            }
+            $this->EE->db->where_in('t.entry_id', $entry_id);
         }
 
-        return $field_value;
+        // --------------------------------------
+        // Limit entries by batch size, if given
+        // --------------------------------------
+
+        if ($start !== FALSE && is_numeric($start))
+        {
+            $this->EE->db->limit($ext['batch_size'], $start);
+        }
+
+        // --------------------------------------
+        // Order it, just in case
+        // --------------------------------------
+
+        $this->EE->db->order_by('entry_id', 'asc');
+
+        // --------------------------------------
+        // Get it
+        // --------------------------------------
+
+        $query = $this->EE->db->get();
+
+        return $query;
+    }
+
+    public function low_search_excerpt($entry_ids, $row, $eid)
+    {
+        // If its not the default language, get the translated value of the field to update
+        // the excerpt string.
+        if ($this->EE->publisher_lib->lang_id != $this->EE->publisher_lib->default_lang_id)
+        {
+            $excerpt = $this->EE->publisher_model->get_field_value(
+                $row['entry_id'], 
+                'field_id_'.$eid, 
+                $this->EE->publisher_lib->status, 
+                $this->EE->publisher_lib->lang_id
+            );
+
+            return array($excerpt, FALSE);
+        }
+
+        return FALSE;
     }
 
     /**
      * Activate Extension
-     *
-     * This function enters the extension into the exp_extensions table
-     *
-     * @see http://codeigniter.com/user_guide/database/index.html for
-     * more information on the db class.
      *
      * @return void
      */
@@ -140,10 +171,10 @@ class Low_search_publisher_ext {
         );
 
         $extensions = array(
-            array('hook'=>'low_search_data_query', 'method'=>'low_search_data_query'),
-            array('hook'=>'low_search_insert_data', 'method'=>'low_search_insert_data'),
+            array('hook'=>'low_search_update_index', 'method'=>'low_search_update_index'),
+            array('hook'=>'low_search_build_index', 'method'=>'low_search_build_index'),
             array('hook'=>'low_search_pre_search', 'method'=>'low_search_pre_search'),
-            array('hook'=>'low_search_query_result', 'method'=>'low_search_query_result')
+            array('hook'=>'low_search_excerpt', 'method'=>'low_search_excerpt')
         );
 
         foreach($extensions as $extension)
@@ -176,6 +207,10 @@ class Low_search_publisher_ext {
     {
         $this->EE->db->where('class', __CLASS__);
         $this->EE->db->delete('extensions');
+
+        $this->EE->db->where('publisher_status !=', PUBLISHER_STATUS_OPEN)
+                     ->where('publisher_lang_id !=', $this->EE->publisher_lib->default_lang_id)
+                     ->delete('low_search_indexes');
 
         if ($this->EE->db->table_exists($this->table) AND $this->EE->db->field_exists('publisher_lang_id', $this->table)) 
         {
