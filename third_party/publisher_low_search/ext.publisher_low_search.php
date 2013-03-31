@@ -84,28 +84,28 @@ class Publisher_low_search_ext {
         return $params;
     }
 
-    public function low_search_build_index($select, $collections, $entry_id, $start, $ext)
+    public function low_search_build_index($fields, $channel_ids, $entry_ids, $start, $batch_size)
     {
         $this->cache['batch_indexing'] = TRUE;
 
         // --------------------------------------
         // Build query
         // --------------------------------------
-        $select[] = 't.publisher_lang_id';
-        $select[] = 't.publisher_status';
+        $fields[] = 't.publisher_lang_id';
+        $fields[] = 't.publisher_status';
 
-        $this->EE->db->select($select)
+        $this->EE->db->select($fields)
                      ->from('publisher_titles t')
                      ->join('publisher_data d', 't.entry_id = d.entry_id', 'inner')
-                     ->where_in('t.channel_id', low_flatten_results($collections, 'channel_id'));
+                     ->where_in('t.channel_id', low_flatten_results($channel_ids, 'channel_id'));
 
         // --------------------------------------
         // Limit to given entries
         // --------------------------------------
 
-        if ($entry_id)
+        if ($entry_ids)
         {
-            $this->EE->db->where_in('t.entry_id', $entry_id);
+            $this->EE->db->where_in('t.entry_id', $entry_ids);
         }
 
         // --------------------------------------
