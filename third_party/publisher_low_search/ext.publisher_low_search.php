@@ -111,7 +111,7 @@ class Publisher_low_search_ext {
         $this->EE->db->select(implode(', ', $field_names))
                      ->from('publisher_titles t')
                      ->join('publisher_data d', 't.entry_id = d.entry_id', 'inner')
-                     ->where_in('t.channel_id', low_flatten_results($channel_ids, 'channel_id'));
+                     ->where_in('t.channel_id', $channel_ids);
 
         // --------------------------------------
         // Limit to given entries
