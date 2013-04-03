@@ -84,9 +84,23 @@ class Publisher_low_search_ext {
         return $params;
     }
 
-    public function low_search_build_index($fields, $channel_ids, $entry_ids, $start, $batch_size)
+    public function low_search_get_index_entries($fields, $channel_ids, $entry_ids, $start, $batch_size)
     {
         $this->cache['batch_indexing'] = TRUE;
+
+        $field_names = array('t.entry_id', 't.channel_id', 't.publisher_lang_id', 't.publisher_status');
+
+        foreach ($fields as $k => $field_id)
+        {
+            if ($field_id == 0)
+            {
+                $field_names[] = 't.title';
+            }
+            else
+            {
+                $field_names[] = 'd.field_id_'.$field_id;
+            }
+        }
 
         // --------------------------------------
         // Build query
@@ -94,7 +108,7 @@ class Publisher_low_search_ext {
         $fields[] = 't.publisher_lang_id';
         $fields[] = 't.publisher_status';
 
-        $this->EE->db->select($fields)
+        $this->EE->db->select(implode(', ', $field_names))
                      ->from('publisher_titles t')
                      ->join('publisher_data d', 't.entry_id = d.entry_id', 'inner')
                      ->where_in('t.channel_id', low_flatten_results($channel_ids, 'channel_id'));
@@ -114,20 +128,20 @@ class Publisher_low_search_ext {
 
         if ($start !== FALSE && is_numeric($start))
         {
-            $this->EE->db->limit($ext['batch_size'], $start);
+            $this->EE->db->limit($batch_size, $start);
         }
 
         // --------------------------------------
         // Order it, just in case
         // --------------------------------------
 
-        $this->EE->db->order_by('entry_id', 'asc');
+        $this->EE->db->order_by('t.entry_id', 'asc');
 
         // --------------------------------------
         // Get it
         // --------------------------------------
 
-        $query = $this->EE->db->get();
+        $query = $this->EE->db->get()->result_array();
 
         return $query;
     }
@@ -172,7 +186,7 @@ class Publisher_low_search_ext {
 
         $extensions = array(
             array('hook'=>'low_search_update_index', 'method'=>'low_search_update_index'),
-            array('hook'=>'low_search_build_index', 'method'=>'low_search_build_index'),
+            array('hook'=>'low_search_get_index_entries', 'method'=>'low_search_get_index_entries'),
             array('hook'=>'low_search_pre_search', 'method'=>'low_search_pre_search'),
             array('hook'=>'low_search_excerpt', 'method'=>'low_search_excerpt')
         );
