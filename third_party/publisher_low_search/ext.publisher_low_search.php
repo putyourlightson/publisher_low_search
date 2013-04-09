@@ -68,7 +68,7 @@ class Publisher_low_search_ext {
             $status = isset($this->EE->publisher_lib->save_status) ? $this->EE->publisher_lib->save_status : PUBLISHER_STATUS_OPEN;
             
             $params['publisher_lang_id'] = $this->EE->publisher_lib->lang_id;
-            $params['publisher_status']  = $this->EE->publisher_lib->status;
+            $params['publisher_status']  = $status;
         }
 
         return $params;
