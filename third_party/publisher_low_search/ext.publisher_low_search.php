@@ -110,7 +110,7 @@ class Publisher_low_search_ext {
 
         $this->EE->db->select(implode(', ', $field_names))
                      ->from('publisher_titles t')
-                     ->join('publisher_data d', 't.entry_id = d.entry_id', 'inner')
+                     ->join('publisher_data d', 't.entry_id = d.entry_id AND t.publisher_lang_id = d.publisher_lang_id AND t.publisher_status = d.publisher_status', 'inner')
                      ->where_in('t.channel_id', $channel_ids);
 
         // --------------------------------------
