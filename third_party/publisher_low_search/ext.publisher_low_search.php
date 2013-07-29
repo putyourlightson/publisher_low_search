@@ -152,9 +152,11 @@ class Publisher_low_search_ext {
         // the excerpt string.
         if ($this->EE->publisher_lib->lang_id != $this->EE->publisher_lib->default_lang_id)
         {
+            $field_name = ($eid == 0) ? 'title' : 'field_id_'.$eid;
+
             $excerpt = $this->EE->publisher_model->get_field_value(
                 $row['entry_id'], 
-                'field_id_'.$eid, 
+                $field_name, 
                 $this->EE->publisher_lib->status, 
                 $this->EE->publisher_lib->lang_id
             );
