@@ -31,7 +31,7 @@ class Publisher_low_search_ext {
     public $docs_url        = '';
     public $name            = 'Publisher - Low Search Support';
     public $settings_exist  = 'n';
-    public $version         = '1.0';
+    public $version         = '1.0.1';
 
     private $table          = 'low_search_indexes';
     private $EE;
@@ -68,7 +68,7 @@ class Publisher_low_search_ext {
             $status = isset($this->EE->publisher_lib->save_status) ? $this->EE->publisher_lib->save_status : PUBLISHER_STATUS_OPEN;
             
             $params['publisher_lang_id'] = $this->EE->publisher_lib->lang_id;
-            $params['publisher_status']  = $this->EE->publisher_lib->status;
+            $params['publisher_status']  = $status;
         }
 
         return $params;
@@ -110,7 +110,7 @@ class Publisher_low_search_ext {
 
         $this->EE->db->select(implode(', ', $field_names))
                      ->from('publisher_titles t')
-                     ->join('publisher_data d', 't.entry_id = d.entry_id', 'inner')
+                     ->join('publisher_data d', 't.entry_id = d.entry_id AND t.publisher_lang_id = d.publisher_lang_id AND t.publisher_status = d.publisher_status', 'inner')
                      ->where_in('t.channel_id', $channel_ids);
 
         // --------------------------------------
@@ -161,6 +161,7 @@ class Publisher_low_search_ext {
                 $this->EE->publisher_lib->lang_id
             );
 
+            // Might need to change to return $excerpt;
             return array($excerpt, FALSE);
         }
 
