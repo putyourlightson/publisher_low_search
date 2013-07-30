@@ -92,14 +92,7 @@ class Publisher_low_search_ext {
 
         foreach ($fields as $k => $field_id)
         {
-            if ($field_id == 0)
-            {
-                $field_names[] = 't.title';
-            }
-            else
-            {
-                $field_names[] = 'd.field_id_'.$field_id;
-            }
+            $field_names[] = ($field_id == 0) ? 't.title' : 'd.field_id_'.$field_id;
         }
 
         // --------------------------------------
