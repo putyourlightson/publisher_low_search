@@ -94,7 +94,7 @@ class Publisher_low_search_ext {
         {
             if ($field_id == 0)
             {
-                $field_names[] = 't.title';
+                $field_names[] = 't.title AS field_id_0';
             }
             else
             {
@@ -165,7 +165,7 @@ class Publisher_low_search_ext {
             return array($excerpt, FALSE);
         }
 
-        return FALSE;
+        return '';
     }
 
     /**
