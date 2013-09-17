@@ -154,6 +154,9 @@ class Publisher_low_search_ext {
                 $this->EE->publisher_lib->lang_id
             );
 
+            // ensure excerpt is a string
+            $excerpt = is_array($excerpt) ? '' : $excerpt;
+
             // Might need to change to return $excerpt;
             return array($excerpt, FALSE);
         }
